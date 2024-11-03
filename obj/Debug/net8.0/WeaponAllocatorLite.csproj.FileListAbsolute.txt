@@ -1,0 +1,12 @@
+/home/fred/cs_work/WeaponAllocatorLite/obj/Debug/net8.0/WeaponAllocatorLite.csproj.AssemblyReference.cache
+/home/fred/cs_work/WeaponAllocatorLite/obj/Debug/net8.0/WeaponAllocatorLite.GeneratedMSBuildEditorConfig.editorconfig
+/home/fred/cs_work/WeaponAllocatorLite/obj/Debug/net8.0/WeaponAllocatorLite.AssemblyInfoInputs.cache
+/home/fred/cs_work/WeaponAllocatorLite/obj/Debug/net8.0/WeaponAllocatorLite.AssemblyInfo.cs
+/home/fred/cs_work/WeaponAllocatorLite/obj/Debug/net8.0/WeaponAllocatorLite.csproj.CoreCompileInputs.cache
+/home/fred/cs_work/WeaponAllocatorLite/bin/Debug/net8.0/WeaponAllocatorLite.deps.json
+/home/fred/cs_work/WeaponAllocatorLite/bin/Debug/net8.0/WeaponAllocatorLite.dll
+/home/fred/cs_work/WeaponAllocatorLite/bin/Debug/net8.0/WeaponAllocatorLite.pdb
+/home/fred/cs_work/WeaponAllocatorLite/obj/Debug/net8.0/WeaponAllocatorLite.dll
+/home/fred/cs_work/WeaponAllocatorLite/obj/Debug/net8.0/refint/WeaponAllocatorLite.dll
+/home/fred/cs_work/WeaponAllocatorLite/obj/Debug/net8.0/WeaponAllocatorLite.pdb
+/home/fred/cs_work/WeaponAllocatorLite/obj/Debug/net8.0/ref/WeaponAllocatorLite.dll
