@@ -109,7 +109,7 @@ public class WeaponAllocatorLite : BasePlugin
         RemoveFromList(player);
     }
 
-    [ConsoleCommand("prim", "this changes primary weapon")]
+    [ConsoleCommand("prim", "This changes primary weapon!")]
     public void OnCommandPrim(CCSPlayerController? player, CommandInfo command)
     {
         if (player == null || !player.IsValid)
@@ -204,7 +204,7 @@ public class WeaponAllocatorLite : BasePlugin
         }
     }
 
-    [ConsoleCommand("seco", "this changes secondary weapon")]
+    [ConsoleCommand("seco", "This changes secondary weapon!")]
     public void OnCommandSeco(CCSPlayerController? player, CommandInfo command)
     {
         if (player == null || !player.IsValid)
@@ -264,7 +264,7 @@ public class WeaponAllocatorLite : BasePlugin
 
     }
 
-    [ConsoleCommand("random", "this changes random choice")]
+    [ConsoleCommand("random", "This changes random choice!")]
     public void OnCommandRandom(CCSPlayerController? player, CommandInfo command)
     {
         if (player == null || !player.IsValid)
