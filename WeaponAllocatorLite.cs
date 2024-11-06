@@ -11,6 +11,9 @@ using Microsoft.Extensions.Logging;
 using static CounterStrikeSharp.API.Utilities;
 using System.Runtime.InteropServices;
 using System.Linq.Expressions;
+using System.Runtime.Serialization;
+using System.Security;
+using System.Runtime.CompilerServices;
 
 namespace WeaponAllocatorLite;
 
@@ -18,19 +21,15 @@ public class WeaponAllocatorLite : BasePlugin
 {
     public static WeaponAllocatorLite Plugin = null!;
 
-    public static FileHandler fileHandler = null!;
-
     public override string ModuleName => "Weapon Allocator Lite Plugin";
 
-    public override string ModuleVersion => "0.0.1";
+    public override string ModuleVersion => "0.0.2";
 
     public static List<Allocator> Allocators = new();
 
     public override void Load(bool hotReload)
     {
         Plugin = this;
-
-        fileHandler = new FileHandler();
 
         RegisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn);
         RegisterListener<CounterStrikeSharp.API.Core.Listeners.OnMapStart>(OnMapStart);
@@ -58,12 +57,6 @@ public class WeaponAllocatorLite : BasePlugin
 
         var allocatorObj = new Allocator(player);
 
-        fileHandler.AddPlayerToFile(player.PlayerName);
-
-        allocatorObj.primary = fileHandler.FindPrimaryInFile(player.PlayerName);
-        allocatorObj.secondary = fileHandler.FindSecondaryInFile(player.PlayerName);
-        allocatorObj.random = fileHandler.FindRandomInFile(player.PlayerName);
-
         Allocators.Add(allocatorObj);
     }
 
@@ -76,7 +69,8 @@ public class WeaponAllocatorLite : BasePlugin
             return;
         }
 
-        fileHandler.InsertPrefsInFile(allocatorObj);
+        allocatorObj.SavePreferences();
+
         Allocators.Remove(allocatorObj);
     }
 
@@ -96,6 +90,10 @@ public class WeaponAllocatorLite : BasePlugin
         }
 
         AddToList(player);
+
+        player.PrintToChat("Select primary with !prim <weapon>");
+        player.PrintToChat("Select secondary with !seco <weapon>");
+        player.PrintToChat("Toggle random weapons with !random <yes|no>");
     }
 
     private static void OnClientDisconnect(int playerSlot)
@@ -116,7 +114,10 @@ public class WeaponAllocatorLite : BasePlugin
             return;
         
         if (command.ArgCount < 2)
+        {
+            player.PrintToChat("Command syntax: !prim <weapon>");
             return;
+        }
       
         string primary = command.ArgByIndex(1);
 
@@ -127,80 +128,18 @@ public class WeaponAllocatorLite : BasePlugin
             return;
         }
 
-        switch (primary)
+        var isValidEnum = Enum.TryParse(primary, true, out CsItem parsedPrimary) &&
+                                            Enum.IsDefined(typeof(CsItem), parsedPrimary);
+
+        if (isValidEnum)
         {
-            case "nova":
-                allocatorObj.primary = CsItem.Nova;
-                break;
-            case "ak":
-                allocatorObj.primary = CsItem.AK47;
-                break;
-            case "m4":
-                allocatorObj.primary = CsItem.M4A1;
-                break;
-            case "m4s":
-                allocatorObj.primary = CsItem.M4A1S;
-                break;
-            case "awp":
-                allocatorObj.primary = CsItem.AWP;
-                break;
-            case "krieg":
-                allocatorObj.primary = CsItem.Krieg;
-                break;
-            case "famas":
-                allocatorObj.primary = CsItem.Famas;
-                break;
-            case "galil":
-                allocatorObj.primary = CsItem.Galil;
-                break;
-            case "bizon":
-                allocatorObj.primary = CsItem.Bizon;
-                break;
-            case "ump":
-                allocatorObj.primary = CsItem.UMP;
-                break;
-            case "mp5":
-                allocatorObj.primary = CsItem.MP5;
-                break;
-            case "mp9":
-                allocatorObj.primary = CsItem.MP9;
-                break;
-            case "negev":
-                allocatorObj.primary = CsItem.Negev;
-                break;
-            case "m249":
-                allocatorObj.primary = CsItem.M249;
-                break;
-            case "mag7":
-                allocatorObj.primary = CsItem.MAG7;
-                break;
-            case "mac10":
-                allocatorObj.primary = CsItem.Mac10;
-                break;
-            case "scout":
-                allocatorObj.primary = CsItem.Scout;
-                break;
-            case "tauto":
-                allocatorObj.primary = CsItem.AutoSniperT;
-                break;
-            case "ctauto":
-                allocatorObj.primary = CsItem.AutoSniperCT;
-                break;
-            case "autoshot":
-                allocatorObj.primary = CsItem.XM1014;
-                break;
-            case "sawed":
-                allocatorObj.primary = CsItem.SawedOff;
-                break;
-            case "mp7":
-                allocatorObj.primary = CsItem.MP7;
-                break;
-            case "p90":
-                allocatorObj.primary = CsItem.P90;
-                break;
-            case "aug":
-                allocatorObj.primary = CsItem.AUG;
-                break;                
+            allocatorObj.Primary = parsedPrimary;
+            string strPrimary = parsedPrimary.ToString();
+            player.PrintToChat($"Succesfully changed secondary to {strPrimary}");
+        }
+        else
+        {
+            player.PrintToChat($"Invalid input; Couldn't find {primary} in weapon list.");
         }
     }
 
@@ -211,7 +150,10 @@ public class WeaponAllocatorLite : BasePlugin
             return;
 
         if (command.ArgCount < 2)
+        {
+            player.PrintToChat("Command syntax: !seco <weapon>");
             return;
+        }
 
         string secondary = command.ArgByIndex(1);
 
@@ -222,46 +164,19 @@ public class WeaponAllocatorLite : BasePlugin
             return;
         }
 
-        switch (secondary)
-        {
-            case "deagle":
-                allocatorObj.secondary = CsItem.Deagle;
-                break;
-            case "p2000":
-                allocatorObj.secondary = CsItem.P2000;
-                break;
-            case "usp":
-                allocatorObj.secondary = CsItem.USP;
-                break;
-            case "glock":
-                allocatorObj.secondary = CsItem.Glock;
-                break;
-            case "duals":
-                allocatorObj.secondary = CsItem.Dualies;
-                break;
-            case "fiveseven":
-                allocatorObj.secondary = CsItem.FiveSeven;
-                break;
-            case "r8":
-                allocatorObj.secondary = CsItem.R8;
-                break;
-            case "revolver":
-                allocatorObj.secondary = CsItem.R8;
-                break;
-            case "57":
-                allocatorObj.secondary = CsItem.FiveSeven;
-                break;
-            case "p250":
-                allocatorObj.secondary = CsItem.P250;
-                break;
-            case "cz":
-                allocatorObj.secondary = CsItem.CZ75;
-                break;
-            case "tec9":
-                allocatorObj.secondary = CsItem.Tec9;
-                break;
-        }
+        var isValidEnum = Enum.TryParse(secondary, true, out CsItem parsedSecondary) &&
+                                                Enum.IsDefined(typeof(CsItem), parsedSecondary);
 
+        if (isValidEnum)
+        {
+            allocatorObj.Secondary = parsedSecondary;
+            string strSecondary = parsedSecondary.ToString();
+            player.PrintToChat($"Succesfully changed secondary to {strSecondary}");
+        }
+        else
+        {
+            player.PrintToChat($"Invalid input; Couldn't find {secondary} in weapon list.");
+        }
     }
 
     [ConsoleCommand("random", "This changes random choice!")]
@@ -271,7 +186,10 @@ public class WeaponAllocatorLite : BasePlugin
             return;
 
         if (command.ArgCount < 2)
+        {
+            player.PrintToChat("Command syntax: !random <yes|no>");
             return;
+        }
 
         string toggle = command.ArgByIndex(1);
 
@@ -285,10 +203,12 @@ public class WeaponAllocatorLite : BasePlugin
         switch (toggle)
         {
             case "yes":
-                allocatorObj.random = true;
+                player.PrintToChat("Random weapons enabled!");
+                allocatorObj.Random = true;
                 break;
             case "no":
-                allocatorObj.random = false;
+                player.PrintToChat("Random weapons disabled!");
+                allocatorObj.Random = false;
                 break;
         }
     }
@@ -320,48 +240,16 @@ public class WeaponAllocatorLite : BasePlugin
 
 public class FileHandler
 {
-    private int PRIM_OFFSET = 1;
-    private int SECO_OFFSET = 2;
-    private int RANDOM_OFFSET = 3;
+    private static int PRIM_OFFSET = 1;
+    private static int SECO_OFFSET = 2;
+    private static int RANDOM_OFFSET = 3;
 
-    private string PrefFile = "player_db.txt";
+    private static string PrefFile = "player_db.txt";
 
-    public CsItem FindPrimaryInFile(string name)
+    public static (CsItem primary, CsItem secondary, bool random) FindAllInFile(string name)
     {
         CsItem primary = CsItem.AK47;
-        string[] arrLine = File.ReadAllLines(PrefFile);
-
-        int i;
-        for(i = 0; i < arrLine.Length; i++)
-        {
-            if (arrLine[i].Equals(name))
-            {
-                return (CsItem)System.Convert.ToInt16(arrLine[i+PRIM_OFFSET]);
-            }
-        }
-
-        return primary;
-    }
-
-    public CsItem FindSecondaryInFile(string name)
-    {
         CsItem secondary = CsItem.Deagle;
-        string[] arrLine = File.ReadAllLines(PrefFile);
-
-        int i;
-        for(i = 0; i < arrLine.Length; i++)
-        {
-            if (arrLine[i].Equals(name))
-            {
-                return (CsItem)System.Convert.ToInt16(arrLine[i+SECO_OFFSET]);
-            }
-        }
-
-        return secondary;
-    }
-
-    public bool FindRandomInFile(string name)
-    {
         bool random = true;
         string[] arrLine = File.ReadAllLines(PrefFile);
 
@@ -370,14 +258,17 @@ public class FileHandler
         {
             if (arrLine[i].Equals(name))
             {
-                return System.Convert.ToBoolean(arrLine[i+RANDOM_OFFSET]);
+                primary = (CsItem)System.Convert.ToInt16(arrLine[i+PRIM_OFFSET]);
+                secondary = (CsItem)System.Convert.ToInt16(arrLine[i+SECO_OFFSET]);
+                random = System.Convert.ToBoolean(arrLine[i+RANDOM_OFFSET]);
+                return (primary, secondary, random);
             }
         }
 
-        return random;
+        return (primary, secondary, random);
     }
 
-    public void AddPlayerToFile(string name)
+    public static void AddPlayerToFile(string name)
     {
         string[] arrLine;
 
@@ -407,20 +298,96 @@ public class FileHandler
         File.WriteAllLines(PrefFile, arrLine);
     }
 
-    public void InsertPrefsInFile(Allocator allocator)
+    public static void InsertPrefsInFile(string name, CsItem primary, CsItem secondary, bool random)
     {
         string[] arrLine = File.ReadAllLines(PrefFile);
         int i;
         for(i = 0; i < arrLine.Length; i++)
         {
-            if (arrLine[i].Equals(allocator.Name))
+            if (arrLine[i].Equals(name))
             {
-                arrLine[i+PRIM_OFFSET] = ((int)allocator.primary).ToString();
-                arrLine[i+SECO_OFFSET] = ((int)allocator.secondary).ToString();
-                arrLine[i+RANDOM_OFFSET] = allocator.random.ToString();
+                arrLine[i+PRIM_OFFSET] = ((int)primary).ToString();
+                arrLine[i+SECO_OFFSET] = ((int)secondary).ToString();
+                arrLine[i+RANDOM_OFFSET] = random.ToString();
                 File.WriteAllLines(PrefFile, arrLine);
             }
         }
+    }
+}
+
+public class Randomizer
+{
+    private static Random rnd = new Random();
+
+    public static bool RandomPercentage(int percentage)
+    {
+        return (rnd.Next(0, 100) <= percentage);
+    }
+
+    public static int RandomBetween(int start, int end)
+    {
+        return rnd.Next(start, end+1);
+    }
+
+    public static (CsItem primary, CsItem secondary) GetRandomWeapons()
+    {
+        CsItem primary, secondary;
+
+        if (RandomPercentage(50))
+        {
+            primary = (CsItem)RandomBetween((int)CsItem.Mac10, (int)CsItem.Negev);
+        }
+        else
+        {
+            primary = (CsItem)RandomBetween((int)CsItem.AK47, (int)CsItem.AutoSniperT);
+        }
+
+        secondary = (CsItem)RandomBetween((int)CsItem.Deagle, (int)CsItem.Revolver);
+
+        return (primary, secondary);
+    }
+
+    public static (CsItem grenade, bool returnBlocker) SelectGrenade(bool disableBlocker, CsTeam playerTeam)
+    {
+        bool returnBlocker = disableBlocker;
+        int random;
+        CsItem grenade;
+        CsItem[] grenadesArr = {CsItem.Flashbang, CsItem.Decoy, CsItem.HE};
+        
+        if (disableBlocker)
+        {
+            grenade = grenadesArr[RandomBetween(0, 2)];
+        }
+        else
+        {
+            random = RandomBetween(0, 4);
+
+            if (random < 3)
+            {
+                grenade = grenadesArr[random];
+            }
+            else
+            {
+                returnBlocker = true;
+                if (random == 3)
+                {
+                    grenade = CsItem.Smoke;
+                }
+                else
+                {
+                    if (playerTeam == CsTeam.CounterTerrorist)
+                    {
+                        grenade = CsItem.IncendiaryGrenade;
+                    }
+                    else
+                    {
+                        grenade = CsItem.Molotov;
+                    }
+                }
+            }
+        }
+
+        return (grenade, returnBlocker);
     }
 }
 
@@ -429,9 +396,25 @@ public class Allocator
 {
     public uint Index;
     public string Name;
-    public CsItem primary;
-    public CsItem secondary;
-    public bool random;
+
+    private CsItem primary;
+    private CsItem secondary;
+    private bool random;
+    public CsItem Primary
+    {
+        get {return primary;}
+        set {primary = value;}
+    }
+    public CsItem Secondary
+    {
+        get {return secondary;}
+        set {secondary = value;}
+    }
+    public bool Random
+    {
+        get {return random;}
+        set {random = value;}
+    }
 
     private CCSPlayerController playerController;
 
@@ -440,9 +423,13 @@ public class Allocator
         playerController = player;
         Index = player.Index;
         Name = player.PlayerName;
-        primary = CsItem.AK47;
-        secondary = CsItem.Deagle;
-        random = true;
+        FileHandler.AddPlayerToFile(player.PlayerName);
+        (primary, secondary, random) = FileHandler.FindAllInFile(player.PlayerName);
+    }
+
+    public void SavePreferences()
+    {
+        FileHandler.InsertPrefsInFile(playerController.PlayerName, primary, secondary, random);
     }
 
     public bool IsValid()
@@ -450,82 +437,44 @@ public class Allocator
         return !(playerController == null! || !playerController.IsValid);
     }
 
-    private CsItem SelectGrenade(bool outlaw_blocker)
+    private void DoGrenades()
     {
-        Random rnd = new Random();
-        int random;
-        CsItem grenade;
-        if (outlaw_blocker)
+        // Get grenades!!!
+        if (Randomizer.RandomPercentage(75))
         {
-            random = rnd.Next(0, 3);
-            if (random == 0)
+            (CsItem grenade, bool disableBlocker) =
+                    Randomizer.SelectGrenade(false, playerController.Team);
+            playerController.GiveNamedItem(grenade);
+            if (Randomizer.RandomPercentage(33))
             {
-                grenade = CsItem.Flashbang;
-            }
-            else if (random == 1)
-            {
-                grenade = CsItem.Decoy;
-            }
-            else
-            {
-                grenade = CsItem.HE;
-            }
-        }
-        else
-        {
-            random = rnd.Next(0, 5);
+                (grenade, disableBlocker) =
+                        Randomizer.SelectGrenade(disableBlocker, playerController.Team);
+                playerController.GiveNamedItem(grenade);
 
-            if (random == 0)
-            {
-                grenade = CsItem.Flashbang;
-            }
-            else if (random == 1)
-            {
-                grenade = CsItem.Decoy;
-            }
-            else if (random == 2)
-            {
-                grenade = CsItem.HE;
-            }
-            else if (random == 3)
-            {
-                grenade = CsItem.Smoke;
-            }
-            else
-            {
-                if (playerController.Team == CsTeam.CounterTerrorist)
+                if (Randomizer.RandomPercentage(10))
                 {
-                    grenade = CsItem.Firebomb;
-                }
-                else
-                {
-                    grenade = CsItem.Molotov;
+                    (grenade, disableBlocker) = Randomizer.SelectGrenade(disableBlocker, playerController.Team);
+                    playerController.GiveNamedItem(grenade);
+
+                    if (Randomizer.RandomPercentage(2))
+                    {
+                        (grenade, _) = Randomizer.SelectGrenade(disableBlocker, playerController.Team);
+                        playerController.GiveNamedItem(grenade);
+                    }
                 }
             }
         }
-
-        return grenade;
     }
 
     public void AllocateStuff()
     {
         playerController.RemoveWeapons();
 
-        CsItem primary;
-        CsItem secondary;
-        Random rnd = new Random();
+        CsItem primary, secondary;
 
         if (random)
         {
-            if (rnd.Next(0, 2) == 1)
-            {
-                primary = (CsItem)rnd.Next(300, 313);
-            }
-            else
-            {
-                primary = (CsItem)rnd.Next(400, 411);
-            }
-            secondary = (CsItem)rnd.Next(200, 210);
+            (primary, secondary) = Randomizer.GetRandomWeapons();
         }
         else
         {
@@ -533,38 +482,11 @@ public class Allocator
             secondary = this.secondary;
         }
 
+        DoGrenades();
         playerController.GiveNamedItem(primary);
         playerController.GiveNamedItem(secondary);
         playerController.GiveNamedItem(CsItem.Knife);
 
-        // Get grenades!!!
-        if (rnd.Next(0,2) == 1)
-        {
-            bool outlaw_blocker = false;
-            CsItem grenade = SelectGrenade(outlaw_blocker);
-            playerController.GiveNamedItem(grenade);
-
-            if (rnd.Next(0,4) == 1)
-            {
-                outlaw_blocker = grenade == CsItem.Molotov || grenade == CsItem.Firebomb;
-                grenade = SelectGrenade(outlaw_blocker);
-                playerController.GiveNamedItem(grenade);
-
-                if (rnd.Next(0,10) == 1)
-                {
-                    outlaw_blocker = grenade == CsItem.Molotov || grenade == CsItem.Firebomb;
-                    grenade = SelectGrenade(outlaw_blocker);
-                    playerController.GiveNamedItem(grenade);
-
-                    if (rnd.Next(0,51) == 1)
-                    {
-                        outlaw_blocker = grenade == CsItem.Molotov || grenade == CsItem.Firebomb;
-                        grenade = SelectGrenade(outlaw_blocker);
-                        playerController.GiveNamedItem(grenade);
-                    }
-                }
-            }
-        }
 
         if (playerController.Team == CsTeam.CounterTerrorist && playerController.PlayerPawn.Value != null && playerController.PlayerPawn.Value.IsValid && playerController.PlayerPawn.Value?.ItemServices?.Handle != null)
         {
