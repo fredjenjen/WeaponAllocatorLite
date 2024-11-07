@@ -1,19 +1,14 @@
-﻿using System.Data;
+﻿using System.Xml.Schema;
+using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Core.Attributes.Registration;
-using CounterStrikeSharp.API.Core.Capabilities;
 using CounterStrikeSharp.API.Modules.Commands;
 using CounterStrikeSharp.API.Modules.Entities;
 using CounterStrikeSharp.API.Modules.Entities.Constants;
+using CounterStrikeSharp.API.Modules.Extensions;
 using CounterStrikeSharp.API.Modules.Utils;
-using System.IO;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 using static CounterStrikeSharp.API.Utilities;
-using System.Runtime.InteropServices;
-using System.Linq.Expressions;
-using System.Runtime.Serialization;
-using System.Security;
-using System.Runtime.CompilerServices;
 
 namespace WeaponAllocatorLite;
 
@@ -23,7 +18,7 @@ public class WeaponAllocatorLite : BasePlugin
 
     public override string ModuleName => "Weapon Allocator Lite Plugin";
 
-    public override string ModuleVersion => "0.0.2";
+    public override string ModuleVersion => "0.0.3";
 
     public static List<Allocator> Allocators = new();
 
@@ -32,14 +27,16 @@ public class WeaponAllocatorLite : BasePlugin
         Plugin = this;
 
         RegisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn);
-        RegisterListener<CounterStrikeSharp.API.Core.Listeners.OnMapStart>(OnMapStart);
-        RegisterListener<CounterStrikeSharp.API.Core.Listeners.OnClientAuthorized>(OnClientAuthorized);
-        RegisterListener<CounterStrikeSharp.API.Core.Listeners.OnClientDisconnect>(OnClientDisconnect);
+        
+        
+        RegisterListener<Listeners.OnMapStart>(OnMapStart);
+        RegisterListener<Listeners.OnClientAuthorized>(OnClientAuthorized);
+        RegisterListener<Listeners.OnClientDisconnect>(OnClientDisconnect);
 
         if (hotReload)
         {
             Allocators.Clear();
-            GetPlayers().ForEach(AddToList);
+            GetPlayers().ForEach(AddToAllocators);
         }
     }
 
@@ -48,7 +45,7 @@ public class WeaponAllocatorLite : BasePlugin
         return Allocators.Find(x => x.Index == player.Index)!;
     }
 
-    public static void AddToList(CCSPlayerController player)
+    public static void AddToAllocators(CCSPlayerController player)
     {
         if(FindAllocator(player) != null!)
         {
@@ -77,7 +74,7 @@ public class WeaponAllocatorLite : BasePlugin
     private static void OnMapStart(string map_name)
     {
         Allocators.Clear();
-        GetPlayers().ForEach(AddToList);
+        GetPlayers().ForEach(AddToAllocators);
     }
 
     private static void OnClientAuthorized(int playerSlot, SteamID steamID)
@@ -89,7 +86,26 @@ public class WeaponAllocatorLite : BasePlugin
             return;
         }
 
-        AddToList(player);
+        AddToAllocators(player);
+
+        int ct = 0;
+        int t = 0;
+
+        foreach (CCSPlayerController x in GetPlayers())
+        {
+            if (x.Team == CsTeam.Terrorist)
+            {
+                t++;
+            }
+            else if (x.Team == CsTeam.CounterTerrorist)
+            {
+                ct++;
+            }
+        }
+        
+        CsTeam teamToPick = ct <= t ? CsTeam.CounterTerrorist : CsTeam.Terrorist;
+
+        player.ChangeTeam(teamToPick);
 
         player.PrintToChat("Select primary with !prim <weapon>");
         player.PrintToChat("Select secondary with !seco <weapon>");
@@ -131,7 +147,7 @@ public class WeaponAllocatorLite : BasePlugin
         var isValidEnum = Enum.TryParse(primary, true, out CsItem parsedPrimary) &&
                                             Enum.IsDefined(typeof(CsItem), parsedPrimary);
 
-        if (isValidEnum)
+        if (isValidEnum && ((int)CsItem.Mac10 <= (int)parsedPrimary) && ((int)parsedPrimary <= (int)CsItem.AutoSniperT))
         {
             allocatorObj.Primary = parsedPrimary;
             string strPrimary = parsedPrimary.ToString();
@@ -167,7 +183,7 @@ public class WeaponAllocatorLite : BasePlugin
         var isValidEnum = Enum.TryParse(secondary, true, out CsItem parsedSecondary) &&
                                                 Enum.IsDefined(typeof(CsItem), parsedSecondary);
 
-        if (isValidEnum)
+        if (isValidEnum && ((int)CsItem.Deagle <= (int)parsedSecondary) && ((int)parsedSecondary <= (int)CsItem.Revolver))
         {
             allocatorObj.Secondary = parsedSecondary;
             string strSecondary = parsedSecondary.ToString();
@@ -202,13 +218,18 @@ public class WeaponAllocatorLite : BasePlugin
         
         switch (toggle)
         {
+            case "true":
             case "yes":
                 player.PrintToChat("Random weapons enabled!");
                 allocatorObj.Random = true;
                 break;
+            case "false":
             case "no":
                 player.PrintToChat("Random weapons disabled!");
                 allocatorObj.Random = false;
+                break;
+            default:
+                player.PrintToChat("Toggle random weapons with !random <yes|no>");
                 break;
         }
     }
@@ -234,8 +255,6 @@ public class WeaponAllocatorLite : BasePlugin
         return HookResult.Continue;
     }
 }
-
-
 
 
 public class FileHandler
@@ -321,7 +340,7 @@ public class Randomizer
 
     public static bool RandomPercentage(int percentage)
     {
-        return (rnd.Next(0, 100) <= percentage);
+        return rnd.Next(0, 100) <= percentage;
     }
 
     public static int RandomBetween(int start, int end)
@@ -347,47 +366,44 @@ public class Randomizer
         return (primary, secondary);
     }
 
-    public static (CsItem grenade, bool returnBlocker) SelectGrenade(bool disableBlocker, CsTeam playerTeam)
+    public static CsItem[] SelectGrenades()
     {
-        bool returnBlocker = disableBlocker;
-        int random;
-        CsItem grenade;
-        CsItem[] grenadesArr = {CsItem.Flashbang, CsItem.Decoy, CsItem.HE};
-        
-        if (disableBlocker)
-        {
-            grenade = grenadesArr[RandomBetween(0, 2)];
-        }
-        else
-        {
-            random = RandomBetween(0, 4);
+        int numGrenades = 0;
+        CsItem[] possibleGrenades = [CsItem.Flashbang,  CsItem.Decoy, CsItem.HE, CsItem.Smoke, CsItem.Flashbang, CsItem.Molotov];
+        CsItem[] grenadesToGive = [0];
+        int[] percentages = [95, 50, 15, 2];
+        CsItem pickedGrenade;
+        int index;
 
-            if (random < 3)
+        foreach (int x in percentages)
+        {
+            if (RandomPercentage(x))
             {
-                grenade = grenadesArr[random];
-            }
-            else
-            {
-                returnBlocker = true;
-                if (random == 3)
+                pickedGrenade = possibleGrenades[RandomBetween(0, possibleGrenades.Length-1)];
+                grenadesToGive = grenadesToGive.Append(pickedGrenade).ToArray();
+                numGrenades++;
+                
+                switch (pickedGrenade)
                 {
-                    grenade = CsItem.Smoke;
-                }
-                else
-                {
-                    if (playerTeam == CsTeam.CounterTerrorist)
-                    {
-                        grenade = CsItem.IncendiaryGrenade;
-                    }
-                    else
-                    {
-                        grenade = CsItem.Molotov;
-                    }
-                }
+                    case CsItem.Smoke:
+                        index = Array.IndexOf(possibleGrenades, CsItem.Molotov);
+                        possibleGrenades = possibleGrenades.Where((val, idx) => idx != index).ToArray();
+                        goto default;
+
+                    case CsItem.Molotov:
+                        index = Array.IndexOf(possibleGrenades, CsItem.Smoke);
+                        possibleGrenades = possibleGrenades.Where((val, idx) => idx != index).ToArray();
+                        goto default;
+                    
+                    default:
+                        index = Array.IndexOf(possibleGrenades, pickedGrenade);
+                        possibleGrenades = possibleGrenades.Where((val, idx) => idx != index).ToArray();
+                        break;
+                }   
             }
         }
 
-        return (grenade, returnBlocker);
+        return grenadesToGive; 
     }
 }
 
@@ -417,7 +433,7 @@ public class Allocator
     }
 
     private CCSPlayerController playerController;
-
+    
     public Allocator(CCSPlayerController player)
     {
         playerController = player;
@@ -439,29 +455,17 @@ public class Allocator
 
     private void DoGrenades()
     {
-        // Get grenades!!!
-        if (Randomizer.RandomPercentage(75))
+        CsItem[] grenades = Randomizer.SelectGrenades();
+
+        foreach (CsItem x in grenades)
         {
-            (CsItem grenade, bool disableBlocker) =
-                    Randomizer.SelectGrenade(false, playerController.Team);
-            playerController.GiveNamedItem(grenade);
-            if (Randomizer.RandomPercentage(33))
+            if (x == CsItem.Molotov && playerController.Team == CsTeam.CounterTerrorist)
             {
-                (grenade, disableBlocker) =
-                        Randomizer.SelectGrenade(disableBlocker, playerController.Team);
-                playerController.GiveNamedItem(grenade);
-
-                if (Randomizer.RandomPercentage(10))
-                {
-                    (grenade, disableBlocker) = Randomizer.SelectGrenade(disableBlocker, playerController.Team);
-                    playerController.GiveNamedItem(grenade);
-
-                    if (Randomizer.RandomPercentage(2))
-                    {
-                        (grenade, _) = Randomizer.SelectGrenade(disableBlocker, playerController.Team);
-                        playerController.GiveNamedItem(grenade);
-                    }
-                }
+                playerController.GiveNamedItem(CsItem.Incendiary);
+            }
+            else
+            {
+                playerController.GiveNamedItem(x);
             }
         }
     }
