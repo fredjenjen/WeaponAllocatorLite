@@ -135,7 +135,7 @@ public class WeaponAllocatorLite : BasePlugin
         {
             allocatorObj.Primary = parsedPrimary;
             string strPrimary = parsedPrimary.ToString();
-            player.PrintToChat($"Succesfully changed secondary to {strPrimary}");
+            player.PrintToChat($"Succesfully changed primary to {strPrimary}");
         }
         else
         {
