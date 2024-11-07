@@ -88,24 +88,24 @@ public class WeaponAllocatorLite : BasePlugin
 
         AddToAllocators(player);
 
-        int ct = 0;
-        int t = 0;
+        // int ct = 0;
+        // int t = 0;
 
-        foreach (CCSPlayerController x in GetPlayers())
-        {
-            if (x.Team == CsTeam.Terrorist)
-            {
-                t++;
-            }
-            else if (x.Team == CsTeam.CounterTerrorist)
-            {
-                ct++;
-            }
-        }
+        // foreach (CCSPlayerController x in GetPlayers())
+        // {
+        //     if (x.Team == CsTeam.Terrorist)
+        //     {
+        //         t++;
+        //     }
+        //     else if (x.Team == CsTeam.CounterTerrorist)
+        //     {
+        //         ct++;
+        //     }
+        // }
         
-        CsTeam teamToPick = ct <= t ? CsTeam.CounterTerrorist : CsTeam.Terrorist;
+        // CsTeam teamToPick = ct <= t ? CsTeam.CounterTerrorist : CsTeam.Terrorist;
 
-        player.ChangeTeam(teamToPick);
+        // player.ChangeTeam(teamToPick);
 
         player.PrintToChat("Select primary with !prim <weapon>");
         player.PrintToChat("Select secondary with !seco <weapon>");
